@@ -1,0 +1,251 @@
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+<body>
+    <p>
+    ZHS Test.
+    </p>
+    <hr></hr>
+    <table>
+        <tr>
+            <td valign="top">
+                <ul id="tree"></ul>
+            </td>
+            <td>
+                <table id="table"></table>
+                <hr></hr>
+                <table>
+                    <tr>
+                        <td>Analyse</td>
+                        <td>
+                            <label><input type="checkbox" onclick='document.getElementById("verbose_div").style.display=this.checked?"":"none";'></input>Verbose</label>
+                        </td>
+                    </tr>
+                </table>
+                <hr></hr>
+                <p>Pattern Tokenizer</p>
+                <table id="token_table"></table>
+                <hr></hr>
+                <div id="verbose_div" style="display: none;">
+                    <p>Lowercase Token Filter</p>
+                    <table id="lowercase_token_table"></table>
+                </div>
+            </td>
+        </tr>
+    </table>
+    <hr></hr>
+
+    <script>
+var column_index = {};
+var index_column = new Array();
+var data = new Array();
+var max_data_num = 30;
+    </script>
+
+    <script>
+function create_data_tree(){
+    for(var j = 0; j < data.length; j++){
+        var index_name = data[j][column_index["_index"]];
+        var type_name = data[j][column_index["_type"]];
+        if(!(index_name in data_tree))
+            data_tree[index_name] = {};
+        data_tree[index_name][type_name] = true;
+    }
+
+    var ul_index = document.getElementById("tree");
+    for(var index_name in data_tree){
+        var li_index = document.createElement("li");
+        ul_index.appendChild(li_index);
+        var label_index = document.createElement("label");
+        li_index.appendChild(label_index);
+        var check_index = document.createElement("input");
+        check_index.type = "checkbox";
+        check_index.value = index_name;
+        check_index.checked = true;
+        check_index.setAttribute("onclick", "check_index_click(this);");
+        label_index.appendChild(check_index);
+        label_index.appendChild(document.createTextNode(index_name));
+
+        var ul_type = document.createElement("ul");
+        li_index.appendChild(ul_type);
+        for(var type_name in data_tree[index_name]){
+            var li_type = document.createElement("li");
+            ul_type.appendChild(li_type);
+            var label_type = document.createElement("label");
+            li_type.appendChild(label_type);
+            var check_type = document.createElement("input");
+            check_type.type = "checkbox";
+            check_type.value = type_name;
+            check_type.checked = true;
+            check_type.setAttribute("onclick", "check_type_click(this);");
+            label_type.appendChild(check_type);
+            label_type.appendChild(document.createTextNode(type_name));
+        }
+    }
+}
+
+function check_index_click(check_index){
+    var li = check_index.parentNode.parentNode;
+    var ul = li.childNodes[1];
+    for(var i = 0; i < ul.childNodes.length; i++){
+        var check_type = ul.childNodes[i].childNodes[0].childNodes[0];
+        check_type.checked = check_index.checked;
+        data_tree[check_index.value][check_type.value] = check_type.checked;
+    }
+    make_table();
+}
+
+function check_type_click(check_type){
+    var check_index = check_type.parentNode.parentNode.parentNode.parentNode.childNodes[0].childNodes[0];
+    data_tree[check_index.value][check_type.value] = check_type.checked;
+    make_table();
+}
+    </script>
+
+    <script>
+function make_table(){
+    var table = document.getElementById("table");
+    while(table.firstChild)
+        table.removeChild(table.firstChild);
+
+    var tr_header = document.createElement("tr");
+    table.appendChild(tr_header);
+    for(var i = 0; i < index_column.length; i++){
+        var th = document.createElement("th");
+        tr_header.appendChild(th);
+        th.appendChild(document.createTextNode(index_column[i]));
+    }
+
+    for(var j = 0; j < data.length; j++){
+        var index_name = data[j][column_index["_index"]];
+        var type_name = data[j][column_index["_type"]];
+        if(!data_tree[index_name][type_name])
+            continue;
+        var tr = document.createElement("tr");
+        table.appendChild(tr);
+        if(j % 2 != 0)
+            tr.className = "alt";
+        for(var i = 0; i < index_column.length; i++){
+            var td = document.createElement("td");
+            tr.appendChild(td);
+            td.appendChild(document.createTextNode(data[j][i]));
+            td.setAttribute("onclick", "data_cell_click("+j+","+i+")");
+        }
+    }
+}
+    </script>
+
+    <script>
+function data_cell_click(j, i){
+    var header = ["Position", "Token", "Offset", "Type", "PositionLength"];
+    var arr = data[j][i].split("-");
+    var token_data = new Array();
+    var lowercase_token_data = new Array();
+    var len = 0;
+    for(var i = 0; i < arr.length; i++){
+        token_data[i] = {
+            "Position": i,
+            "Token": arr[i],
+            "Offset": len + "-" + (len + arr[i].length - 1),
+            "Type": isNaN(arr[i]) ? "word" : "num",
+            "PositionLength": arr[i].length,
+        };
+        lowercase_token_data[i] = {
+            "Position": i,
+            "Token": arr[i].toLowerCase(),
+            "Offset": len + "-" + (len + arr[i].length - 1),
+            "Type": isNaN(arr[i]) ? "word" : "num",
+            "PositionLength": arr[i].length,
+        };
+        len += arr[i].length + 1;
+    }
+    var token_table = document.getElementById("token_table");
+    var lowercase_token_table = document.getElementById("lowercase_token_table");
+    make_analyse_table(token_table, header, token_data);
+    make_analyse_table(lowercase_token_table, header, lowercase_token_data);
+}
+
+function make_analyse_table(table, header, data){
+    while(table.firstChild)
+        table.removeChild(table.firstChild);
+    for(var i = 0; i < header.length; i++){
+        var tr = document.createElement("tr");
+        table.appendChild(tr);
+        var th = document.createElement("th");
+        tr.appendChild(th);
+        th.appendChild(document.createTextNode(header[i]));
+        for(var j = 0; j < data.length; j++){
+            var td = document.createElement("td");
+            tr.appendChild(td);
+            td.appendChild(document.createTextNode(data[j][header[i]]));
+        }
+    }
+}
+    </script>
+
+    <script>
+var hash = window.location.hash;
+document.write("<p>" + hash + "</p>");
+
+if(hash.length > 0){
+    hash = hash.substring(1);
+
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("GET", location.protocol + "//" + location.host + "/" + hash, false);
+    xmlHttp.send(null);
+    var response = xmlHttp.responseText;
+    document.write("<p>" + response + "</p>");
+
+    var json = JSON.parse(response);
+    process_data(json, true);
+    process_data(json, false);
+    var data_tree = {};
+    create_data_tree();
+    make_table();
+
+    function process_data(json, do_header){
+        if(json instanceof Object){
+            for(var field in json){
+                if(field == "_source"){
+                    if(do_header){
+                        process_source_header(json[field]);
+                    }
+                    else{
+                        if(!process_source_data(json[field]))
+                            return false;
+                    }
+                }
+                else{
+                    if(!process_data(json[field], do_header))
+                        return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function process_source_header(source){
+        for(var field in source){
+            if(!(field in column_index)){
+                index_column[index_column.length] = field;
+                column_index[field] = Object.keys(column_index).length;
+            }
+        }
+    }
+
+    function process_source_data(source){
+        row = new Array();
+        for(var i = 0; i < index_column.length; i++){
+            if(index_column[i] in source)
+                row[i] = source[index_column[i]];
+            else
+                row[i] = "";
+        }
+        data[data.length] = row;
+        return data.length < max_data_num;
+    }
+}
+    </script>
+</body>
+</html>
